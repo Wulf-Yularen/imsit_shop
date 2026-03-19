@@ -1,0 +1,14 @@
+# фото товаров (большие файлы, не нужны в репо)
+uploads/products/*
+!uploads/products/.gitkeep
+
+# системные файлы Windows
+Thumbs.db
+desktop.ini
+
+# системные файлы macOS
+.DS_Store
+
+# IDE
+.idea/
+.vscode/
