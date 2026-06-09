@@ -1,6 +1,6 @@
 -- создание базы данных
-CREATE DATABASE IF NOT EXISTS imsit_shop CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
-USE imsit_shop;
+CREATE DATABASE IF NOT EXISTS `imsit-shop` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+USE `imsit-shop`;
 
 -- пользователи
 CREATE TABLE users (

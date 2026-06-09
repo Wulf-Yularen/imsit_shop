@@ -21,7 +21,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $password2 = $_POST['password2'] ?? '';
 
     if ($login === '') $errors[] = 'Введите логин';
-    if ($email === '') $errors[] = 'Введите email';
+    if ($email === '') {
+        $errors[] = 'Введите email';
+    } elseif (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+        $errors[] = 'Некорректный формат email';
+    }
     if (strlen($password) < 6) $errors[] = 'Пароль минимум 6 символов';
     if ($password !== $password2) $errors[] = 'Пароли не совпадают';
 

@@ -11,21 +11,50 @@ $cartCount = isLoggedIn() ? getCartCount() : 0;
     <meta name="description" content="<?= htmlspecialchars($pageDescription ?? 'Официальный интернет-магазин мерча Академии ИМСИТ') ?>">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
     <style>
         :root {
             --imsit-blue: #0d6efd;
             --imsit-dark: #0a1628;
             --imsit-gradient: linear-gradient(135deg, #0a1628 0%, #1a3a6e 100%);
+            --imsit-gold: linear-gradient(135deg, #f0c27f 0%, #4b6cb7 100%);
         }
         body {
             min-height: 100vh;
             display: flex;
             flex-direction: column;
-            font-family: 'Segoe UI', Roboto, sans-serif;
+            font-family: 'Inter', 'Segoe UI', Roboto, sans-serif;
         }
         main { flex: 1; }
         .navbar { background: var(--imsit-gradient) !important; }
-        .navbar-brand { font-weight: 700; letter-spacing: 1px; }
+        .navbar-brand {
+            font-weight: 800;
+            letter-spacing: 1.5px;
+            font-size: 1.35rem;
+            display: flex;
+            align-items: center;
+            gap: 0;
+        }
+        .brand-accent {
+            background: var(--imsit-gold);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+        }
+        .brand-sep {
+            color: rgba(255,255,255,.3);
+            margin: 0 6px;
+            font-weight: 300;
+        }
+        .brand-sub {
+            font-weight: 400;
+            letter-spacing: .5px;
+            opacity: .85;
+            text-transform: lowercase;
+        }
         .card-product {
             transition: box-shadow .25s, transform .25s;
             border: none;
@@ -63,6 +92,12 @@ $cartCount = isLoggedIn() ? getCartCount() : 0;
             padding: 10px 28px;
         }
         .btn-imsit:hover { background: #0b5ed7; color: #fff; }
+        .badge-out-of-stock {
+            position: absolute;
+            top: 12px;
+            right: 12px;
+            z-index: 2;
+        }
     </style>
 </head>
 <body>
@@ -70,7 +105,7 @@ $cartCount = isLoggedIn() ? getCartCount() : 0;
 <nav class="navbar navbar-expand-lg navbar-dark sticky-top">
     <div class="container">
         <a class="navbar-brand" href="/index.php">
-            <i class="bi bi-mortarboard-fill me-2"></i>ИМСИТ Мерч
+            <i class="bi bi-mortarboard-fill me-2"></i><span class="brand-accent">ИМСИТ</span><span class="brand-sep">·</span><span class="brand-sub">Мерч</span>
         </a>
         <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#mainNav">
             <span class="navbar-toggler-icon"></span>

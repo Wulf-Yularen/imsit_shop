@@ -30,28 +30,50 @@ $sizes = $stmt->fetchAll();
 
 // добавление в корзину
 $message = '';
+$messageType = 'success';
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isLoggedIn()) {
     verifyCsrfToken();
     $sizeId = (int) ($_POST['size_id'] ?? 0);
-
+    
     if ($sizeId <= 0) {
         $message = 'Выберите размер.';
+        $messageType = 'Ошибка';
     } else {
-        // проверяем, есть ли уже в корзине
+        // проверяем остаток на складе
+        $stmtStock = $db->prepare('SELECT quantity FROM product_sizes WHERE product_id = ? AND size_id = ?');
+        $stmtStock->execute([$id, $sizeId]);
+        $stock = (int) $stmtStock->fetchColumn();
+
+        // сколько уже в корзине
         $stmt = $db->prepare('SELECT id, quantity FROM cart WHERE user_id = ? AND product_id = ? AND size_id = ?');
         $stmt->execute([$_SESSION['user_id'], $id, $sizeId]);
         $existing = $stmt->fetch();
 
-        if ($existing) {
-            $stmt = $db->prepare('UPDATE cart SET quantity = quantity + 1 WHERE id = ?');
-            $stmt->execute([$existing['id']]);
+        $inCart = $existing ? (int) $existing['quantity'] : 0;
+
+        if ($stock <= 0) {
+            $message = 'Этого размера нет в наличии.';
+            $messageType = 'danger';
+        } elseif ($inCart + 1 > $stock) {
+            $message = 'Недостаточно товара на складе. Доступно: ' . $stock . ' шт., в корзине: ' . $inCart . ' шт.';
+            $messageType = 'warning';
         } else {
-            $stmt = $db->prepare('INSERT INTO cart (user_id, product_id, size_id, quantity, added_at) VALUES (?, ?, ?, 1, NOW())');
-            $stmt->execute([$_SESSION['user_id'], $id, $sizeId]);
+            if ($existing) {
+                $stmt = $db->prepare('UPDATE cart SET quantity = quantity + 1 WHERE id = ?');
+                $stmt->execute([$existing['id']]);
+            } else {
+                $stmt = $db->prepare('INSERT INTO cart (user_id, product_id, size_id, quantity, added_at) VALUES (?, ?, ?, 1, NOW())');
+                $stmt->execute([$_SESSION['user_id'], $id, $sizeId]);
+            }
+            $message = 'Товар добавлен в корзину!';
         }
-        $message = 'Товар добавлен в корзину!';
     }
 }
+
+// перечитываем размеры после возможного изменения
+$stmt = $db->prepare('SELECT ps.*, s.name AS size_name FROM product_sizes ps JOIN sizes s ON ps.size_id = s.id WHERE ps.product_id = ? ORDER BY s.id');
+$stmt->execute([$id]);
+$sizes = $stmt->fetchAll();
 
 $pageTitle = htmlspecialchars($product['name']) . ' — ИМСИТ Мерч';
 include 'includes/header.php';
@@ -59,7 +81,7 @@ include 'includes/header.php';
 
 <div class="container my-5">
     <?php if ($message): ?>
-        <div class="alert alert-success alert-dismissible fade show">
+        <div class="alert alert-<?= $messageType ?> alert-dismissible fade show">
             <?= htmlspecialchars($message) ?>
             <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
         </div>
@@ -99,9 +121,15 @@ include 'includes/header.php';
                             <?php foreach ($sizes as $s): ?>
                                 <?php if ($s['quantity'] > 0): ?>
                                     <input type="radio" class="btn-check" name="size_id" id="size_<?= $s['size_id'] ?>" value="<?= $s['size_id'] ?>" autocomplete="off">
-                                    <label class="btn btn-outline-primary" for="size_<?= $s['size_id'] ?>"><?= htmlspecialchars($s['size_name']) ?></label>
+                                    <label class="btn btn-outline-primary" for="size_<?= $s['size_id'] ?>">
+                                        <?= htmlspecialchars($s['size_name']) ?>
+                                        <small class="d-block" style="font-size:.65rem;opacity:.7">ост. <?= $s['quantity'] ?> шт.</small>
+                                    </label>
                                 <?php else: ?>
-                                    <button type="button" class="btn btn-outline-secondary" disabled><?= htmlspecialchars($s['size_name']) ?></button>
+                                    <button type="button" class="btn btn-outline-secondary" disabled>
+                                        <?= htmlspecialchars($s['size_name']) ?>
+                                        <small class="d-block" style="font-size:.65rem">нет</small>
+                                    </button>
                                 <?php endif; ?>
                             <?php endforeach; ?>
                         </div>

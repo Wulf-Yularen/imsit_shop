@@ -15,7 +15,7 @@ $search = trim($_GET['search'] ?? '');
 $cats = $db->query('SELECT * FROM categories ORDER BY sort_order, name')->fetchAll();
 
 // товары
-$sql = 'SELECT p.*, c.name AS category_name FROM products p LEFT JOIN categories c ON p.category_id = c.id WHERE p.is_active = 1';
+$sql = 'SELECT p.*, c.name AS category_name, COALESCE((SELECT SUM(ps.quantity) FROM product_sizes ps WHERE ps.product_id = p.id), 0) AS total_stock FROM products p LEFT JOIN categories c ON p.category_id = c.id WHERE p.is_active = 1';
 $params = [];
 
 if ($categoryId > 0) {
@@ -65,7 +65,10 @@ include 'includes/header.php';
         <div class="row g-4">
             <?php foreach ($products as $p): ?>
                 <div class="col-md-4 col-lg-3">
-                    <div class="card card-product h-100 shadow-sm">
+                    <div class="card card-product h-100 shadow-sm position-relative">
+                        <?php if ((int)$p['total_stock'] <= 0): ?>
+                            <span class="badge bg-danger badge-out-of-stock">Нет в наличии</span>
+                        <?php endif; ?>
                         <?php
                         $img = $p['image_main'] && file_exists(__DIR__ . '/uploads/products/' . $p['image_main'])
                             ? '/uploads/products/' . htmlspecialchars($p['image_main'])

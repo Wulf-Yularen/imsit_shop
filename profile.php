@@ -12,15 +12,25 @@ $pageTitle = 'Личный кабинет — ИМСИТ Мерч';
 
 // обновление профиля
 $profileMsg = '';
+$profileErrors = [];
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'update_profile') {
     verifyCsrfToken();
     $fullName = trim($_POST['full_name'] ?? '');
     $phone = trim($_POST['phone'] ?? '');
     $email = trim($_POST['email'] ?? '');
 
-    $stmt = $db->prepare('UPDATE users SET full_name = ?, phone = ?, email = ? WHERE id = ?');
-    $stmt->execute([$fullName, $phone, $email, $userId]);
-    $profileMsg = 'Данные обновлены.';
+    if ($email !== '' && !filter_var($email, FILTER_VALIDATE_EMAIL)) {
+        $profileErrors[] = 'Некорректный формат email';
+    }
+    if ($phone !== '' && !preg_match('/^\+?[0-9\s\-\(\)]{7,20}$/', $phone)) {
+        $profileErrors[] = 'Некорректный формат телефона';
+    }
+
+    if (empty($profileErrors)) {
+        $stmt = $db->prepare('UPDATE users SET full_name = ?, phone = ?, email = ? WHERE id = ?');
+        $stmt->execute([$fullName, $phone, $email, $userId]);
+        $profileMsg = 'Данные обновлены.';
+    }
 }
 
 // сообщение об успешном заказе
@@ -63,6 +73,11 @@ include 'includes/header.php';
     <?php endif; ?>
     <?php if ($profileMsg): ?>
         <div class="alert alert-success"><?= htmlspecialchars($profileMsg) ?></div>
+    <?php endif; ?>
+    <?php if (!empty($profileErrors)): ?>
+        <div class="alert alert-danger">
+            <ul class="mb-0"><?php foreach ($profileErrors as $e): ?><li><?= htmlspecialchars($e) ?></li><?php endforeach; ?></ul>
+        </div>
     <?php endif; ?>
 
     <div class="row g-5">

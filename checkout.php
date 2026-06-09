@@ -51,34 +51,72 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $comment = trim($_POST['comment'] ?? '');
 
     if ($fullName === '') $errors[] = 'Укажите ФИО';
-    if ($phone === '') $errors[] = 'Укажите телефон';
-    if ($email === '') $errors[] = 'Укажите email';
+    if ($phone === '') {
+        $errors[] = 'Укажите телефон';
+    } elseif (!preg_match('/^\+?[0-9\s\-\(\)]{7,20}$/', $phone)) {
+        $errors[] = 'Некорректный формат телефона';
+    }
+    if ($email === '') {
+        $errors[] = 'Укажите email';
+    } elseif (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+        $errors[] = 'Некорректный формат email';
+    }
 
     if (empty($errors)) {
-        // пересчитываем total из базы (безопасно)
-        $stmt = $db->prepare('SELECT SUM(p.price * c.quantity) FROM cart c JOIN products p ON c.product_id = p.id WHERE c.user_id = ?');
-        $stmt->execute([$userId]);
-        $total = (float) $stmt->fetchColumn();
+        $db->beginTransaction();
+        try {
+            // проверяем остатки и списываем
+            $stmtCheck = $db->prepare('SELECT ps.quantity FROM product_sizes ps WHERE ps.product_id = ? AND ps.size_id = ? FOR UPDATE');
+            $stmtDeduct = $db->prepare('UPDATE product_sizes SET quantity = quantity - ? WHERE product_id = ? AND size_id = ?');
 
-        // создаём заказ
-        $stmt = $db->prepare('INSERT INTO orders (user_id, full_name, phone, email, address, comment, total, status, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW())');
-        $stmt->execute([$userId, $fullName, $phone, $email, $address, $comment, $total, 'pending']);
-        $orderId = $db->lastInsertId();
+            foreach ($items as $i) {
+                $stmtCheck->execute([$i['product_id'], $i['size_id']]);
+                $stock = (int) $stmtCheck->fetchColumn();
 
-        // позиции заказа
-        $stmt = $db->prepare('INSERT INTO order_items (order_id, product_id, size_id, product_name, size_name, price, quantity) VALUES (?, ?, ?, ?, ?, ?, ?)');
-        foreach ($items as $i) {
-            $stmt->execute([$orderId, $i['product_id'], $i['size_id'], $i['name'], $i['size_name'], $i['price'], $i['quantity']]);
+                if ($stock < $i['quantity']) {
+                    $errors[] = 'Недостаточно товара «' . $i['name'] . '» (размер ' . $i['size_name'] . '): на складе ' . $stock . ' шт., в корзине ' . $i['quantity'] . ' шт.';
+                }
+            }
+
+            if (!empty($errors)) {
+                $db->rollBack();
+            } else {
+                // списываем остатки
+                foreach ($items as $i) {
+                    $stmtDeduct->execute([$i['quantity'], $i['product_id'], $i['size_id']]);
+                }
+
+                // пересчитываем total из базы (безопасно)
+                $stmt = $db->prepare('SELECT SUM(p.price * c.quantity) FROM cart c JOIN products p ON c.product_id = p.id WHERE c.user_id = ?');
+                $stmt->execute([$userId]);
+                $total = (float) $stmt->fetchColumn();
+
+                // создаём заказ
+                $stmt = $db->prepare('INSERT INTO orders (user_id, full_name, phone, email, address, comment, total, status, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW())');
+                $stmt->execute([$userId, $fullName, $phone, $email, $address, $comment, $total, 'pending']);
+                $orderId = $db->lastInsertId();
+
+                // позиции заказа
+                $stmt = $db->prepare('INSERT INTO order_items (order_id, product_id, size_id, product_name, size_name, price, quantity) VALUES (?, ?, ?, ?, ?, ?, ?)');
+                foreach ($items as $i) {
+                    $stmt->execute([$orderId, $i['product_id'], $i['size_id'], $i['name'], $i['size_name'], $i['price'], $i['quantity']]);
+                }
+
+                // очищаем корзину
+                $del = $db->prepare('DELETE FROM cart WHERE user_id = ?');
+                $del->execute([$userId]);
+
+                $db->commit();
+
+                // редирект в профиль
+                $_SESSION['order_success'] = 'Заказ #' . $orderId . ' успешно оформлен!';
+                header('Location: /profile.php');
+                exit;
+            }
+        } catch (\Exception $e) {
+            $db->rollBack();
+            $errors[] = 'Ошибка при оформлении заказа. Попробуйте ещё раз.';
         }
-
-        // очищаем корзину
-        $del = $db->prepare('DELETE FROM cart WHERE user_id = ?');
-        $del->execute([$userId]);
-
-        // редирект в профиль
-        $_SESSION['order_success'] = 'Заказ #' . $orderId . ' успешно оформлен!';
-        header('Location: /profile.php');
-        exit;
     }
 }
 

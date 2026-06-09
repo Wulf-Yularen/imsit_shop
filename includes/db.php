@@ -6,7 +6,7 @@ function getDB()
     static $pdo = null;
     if ($pdo === null) {
         $pdo = new PDO(
-            'mysql:host=127.0.0.1;dbname=imsit_shop;charset=utf8mb4',
+            'mysql:host=127.0.0.1;dbname=imsit-shop;charset=utf8mb4',
             'root',
             'root',
         [
